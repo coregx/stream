@@ -1,0 +1,44 @@
+# Codecov configuration for Stream Library (SSE + WebSocket)
+# Documentation: https://docs.codecov.com/docs/codecovyml-reference
+# Validator: https://api.codecov.io/validate
+
+coverage:
+  precision: 2
+  round: down
+  range: "80...100"
+
+  status:
+    project:
+      default:
+        target: 80%           # Minimum project coverage (current: 84.3%)
+        threshold: 2%         # Allow 2% drop from target
+        base: auto
+        informational: false  # Fail if below target
+        only_pulls: false
+
+    patch:
+      default:
+        target: auto          # Auto-detect reasonable target for changes
+        threshold: 10%        # Allow 10% variance for patches
+        base: auto
+        informational: true   # Don't fail PRs, just inform
+        only_pulls: false
+
+  ignore:
+    - "examples/**"           # Example code (not covered by tests)
+    - "testdata/**"           # Test data files
+    - "**/*_test.go"          # Test files themselves
+    - "**/*_bench_test.go"    # Benchmark files
+    - "scripts/**"            # Development scripts
+    - "docs/**"               # Documentation
+
+comment:
+  layout: "header, diff, flags, files, footer"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+# GitHub integration
+github_checks:
+  annotations: true

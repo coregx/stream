@@ -1,0 +1,62 @@
+# CODEOWNERS for Stream Library (SSE + WebSocket)
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# This file defines individuals or teams responsible for code in this repository.
+# Code owners are automatically requested for review when someone opens a pull request
+# that modifies code they own.
+
+# Default owner for everything in the repo
+* @kolkov
+
+# SSE package - Server-Sent Events implementation
+/sse/ @kolkov
+/sse/*.go @kolkov
+/sse/*_test.go @kolkov
+
+# WebSocket package - RFC 6455 implementation
+/websocket/ @kolkov
+/websocket/*.go @kolkov
+/websocket/*_test.go @kolkov
+
+# Examples - Usage demonstrations
+/examples/ @kolkov
+/examples/sse/ @kolkov
+/examples/websocket/ @kolkov
+
+# Documentation - Keep up to date with code changes
+*.md @kolkov
+/docs/ @kolkov
+
+# GitHub configuration and CI/CD
+/.github/ @kolkov
+/.github/workflows/ @kolkov
+
+# Code quality and linting configuration
+/.golangci.yml @kolkov
+
+# Tests - Ensure coverage and reliability
+*_test.go @kolkov
+
+# Benchmarks - Performance validation
+*_bench_test.go @kolkov
+*_benchmark_test.go @kolkov
+
+# Integration tests
+/integration_test.go @kolkov
+
+# Release management - Version control and changelog
+/CHANGELOG.md @kolkov
+/RELEASE-NOTES-v0.1.0.md @kolkov
+
+# Contributing guidelines
+/CONTRIBUTING.md @kolkov
+
+# Security policy
+/SECURITY.md @kolkov
+
+# Go module files - Dependency management (zero deps policy!)
+/go.mod @kolkov
+/go.sum @kolkov
+
+# License
+/LICENSE @kolkov
