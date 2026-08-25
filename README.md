@@ -345,3 +345,14 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ---
 
 Built with ❤️ for the Go community by [coregx](https://github.com/coregx)
+
+
+## Star History
+
+<a href="https://starhistory.io">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.starhistory.io/png?repos=coregx/stream&style=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.starhistory.io/png?repos=coregx/stream&style=professional" />
+   <img alt="Star History Chart" src="https://api.starhistory.io/png?repos=coregx/stream" width="800" />
+ </picture>
+</a>
