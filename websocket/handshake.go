@@ -5,7 +5,9 @@ import (
 	"crypto/sha1" // #nosec G505 - SHA-1 required by RFC 6455 Section 1.3
 	"encoding/base64"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 )
 
 // Magic GUID from RFC 6455 Section 1.3.
@@ -43,8 +45,20 @@ type UpgradeOptions struct {
 	ReadBufferSize int
 
 	// WriteBufferSize sets size of write buffer (default: 4096).
-	// Larger buffers reduce syscalls for large messages.
 	WriteBufferSize int
+
+	// MaxMessageSize limits total reassembled message size (default: 4 MB).
+	// Prevents memory exhaustion from fragmented messages.
+	// Set to 0 for no limit (not recommended).
+	MaxMessageSize int64
+
+	// ReadTimeout sets deadline for read operations (default: 60s).
+	// Zero means no timeout (not recommended in production).
+	ReadTimeout time.Duration
+
+	// WriteTimeout sets deadline for write operations (default: 10s).
+	// Zero means no timeout (not recommended in production).
+	WriteTimeout time.Duration
 }
 
 // Upgrade upgrades an HTTP connection to the WebSocket protocol.
@@ -121,8 +135,13 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts *UpgradeOptions) (*Con
 		return nil, ErrMissingSecKey
 	}
 
-	// 6. Check origin (application-level security)
-	if opts.CheckOrigin != nil && !opts.CheckOrigin(r) {
+	// 6. Check origin (application-level security).
+	// Default: same-origin check. Set CheckOrigin to override.
+	checkOrigin := opts.CheckOrigin
+	if checkOrigin == nil {
+		checkOrigin = checkSameOrigin
+	}
+	if !checkOrigin(r) {
 		return nil, ErrOriginDenied
 	}
 
@@ -171,7 +190,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts *UpgradeOptions) (*Con
 	writer := bufio.NewWriterSize(netConn, opts.WriteBufferSize)
 
 	// 12. Create WebSocket connection (server-side)
-	conn := newConn(netConn, reader, writer, true)
+	conn := newConn(netConn, reader, writer, true, *opts)
 
 	return conn, nil
 }
@@ -257,13 +276,12 @@ func checkSameOrigin(r *http.Request) bool {
 		return true
 	}
 
-	// Build expected origin from request
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
+	// Compare host only, ignore scheme — works behind TLS-terminating proxies
+	// (nginx/Caddy/Cloudflare set r.TLS=nil even for HTTPS traffic).
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
 	}
 
-	expectedOrigin := scheme + "://" + r.Host
-
-	return origin == expectedOrigin
+	return strings.EqualFold(u.Host, r.Host)
 }

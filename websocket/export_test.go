@@ -24,7 +24,7 @@ type FrameForTest struct {
 
 // ReadFrameForTest reads a frame (exported for testing).
 func ReadFrameForTest(r *bufio.Reader) (*FrameForTest, error) {
-	f, err := readFrame(r)
+	f, err := readFrame(r, 0)
 	if err != nil {
 		return nil, err
 	}

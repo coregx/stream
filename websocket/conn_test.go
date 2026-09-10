@@ -28,7 +28,7 @@ func mockConn(t *testing.T, frames []*frame, isServer bool) *Conn {
 	// Create connection with buffer as reader
 	reader := bufio.NewReader(&buf)
 	writer := bufio.NewWriter(io.Discard) // Writes go nowhere
-	return newConn(nil, reader, writer, isServer)
+	return newConn(nil, reader, writer, isServer, UpgradeOptions{})
 }
 
 // mockConnNoValidation creates a mock connection with frames (no validation).
@@ -50,7 +50,7 @@ func mockConnNoValidation(t *testing.T, frames []*frame, isServer bool) *Conn {
 	// Create connection with buffer as reader
 	reader := bufio.NewReader(&buf)
 	writer := bufio.NewWriter(io.Discard) // Writes go nowhere
-	return newConn(nil, reader, writer, isServer)
+	return newConn(nil, reader, writer, isServer, UpgradeOptions{})
 }
 
 // mockConnWriter creates a mock connection that captures writes.
@@ -62,7 +62,7 @@ func mockConnWriter(t *testing.T) (*Conn, *bytes.Buffer) {
 	var writeBuf bytes.Buffer
 	reader := bufio.NewReader(bytes.NewReader(nil)) // Empty reader
 	writer := bufio.NewWriter(&writeBuf)
-	conn := newConn(nil, reader, writer, true) // Server-side
+	conn := newConn(nil, reader, writer, true, UpgradeOptions{}) // Server-side
 	return conn, &writeBuf
 }
 
@@ -346,7 +346,7 @@ func TestConn_Write(t *testing.T) {
 
 			// Read frame from buffer
 			r := bufio.NewReader(writeBuf)
-			frame, err := readFrame(r)
+			frame, err := readFrame(r, 0)
 			if err != nil {
 				t.Fatalf("readFrame() error = %v", err)
 			}
@@ -377,7 +377,7 @@ func TestConn_WriteText(t *testing.T) {
 	}
 
 	r := bufio.NewReader(writeBuf)
-	frame, err := readFrame(r)
+	frame, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("readFrame() error = %v", err)
 	}
@@ -407,7 +407,7 @@ func TestConn_WriteJSON(t *testing.T) {
 	}
 
 	r := bufio.NewReader(writeBuf)
-	frame, err := readFrame(r)
+	frame, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("readFrame() error = %v", err)
 	}
@@ -437,7 +437,7 @@ func TestConn_Ping(t *testing.T) {
 	}
 
 	r := bufio.NewReader(writeBuf)
-	frame, err := readFrame(r)
+	frame, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("readFrame() error = %v", err)
 	}
@@ -466,7 +466,7 @@ func TestConn_Pong(t *testing.T) {
 	}
 
 	r := bufio.NewReader(writeBuf)
-	frame, err := readFrame(r)
+	frame, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("readFrame() error = %v", err)
 	}
@@ -495,7 +495,7 @@ func TestConn_Close(t *testing.T) {
 
 	// Verify close frame sent
 	r := bufio.NewReader(writeBuf)
-	frame, err := readFrame(r)
+	frame, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("readFrame() error = %v", err)
 	}
@@ -538,7 +538,7 @@ func TestConn_CloseWithCode(t *testing.T) {
 
 			// Verify close frame
 			r := bufio.NewReader(writeBuf)
-			frame, err := readFrame(r)
+			frame, err := readFrame(r, 0)
 			if err != nil {
 				t.Fatalf("readFrame() error = %v", err)
 			}
@@ -609,7 +609,7 @@ func TestConn_DoubleClose(t *testing.T) {
 
 	// Read first close frame
 	r := bufio.NewReader(writeBuf)
-	frame1, err := readFrame(r)
+	frame1, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("readFrame() error = %v", err)
 	}
@@ -624,7 +624,7 @@ func TestConn_DoubleClose(t *testing.T) {
 	}
 
 	// Try to read second frame (should be EOF)
-	frame2, err := readFrame(r)
+	frame2, err := readFrame(r, 0)
 	if err == nil && frame2 != nil {
 		t.Error("Second close frame sent (Close not idempotent)")
 	}

@@ -83,6 +83,11 @@ func NewHub[T any]() *Hub[T] {
 // Run processes client registration, unregistration, and broadcast operations.
 // It should be called in a goroutine and will block until Close() is called.
 //
+// WARNING: Broadcast writes to clients synchronously in the Run loop.
+// A single slow or disconnected client will block delivery to all others.
+// For production use, set WriteTimeout on your http.Server or use
+// http.ResponseController.SetWriteDeadline (Go 1.20+) per connection.
+//
 // Example:
 //
 //	hub := sse.NewHub[string]()

@@ -15,6 +15,9 @@ import (
 // TestLoad_ConcurrentConnections tests handling 100 concurrent WebSocket connections.
 func TestLoad_ConcurrentConnections(t *testing.T) {
 	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	if testing.Short() {
 		t.Skip("Skipping load test in short mode")
 	}
 
@@ -135,6 +138,9 @@ func TestLoad_ConcurrentConnections(t *testing.T) {
 
 // TestLoad_Hub_100Clients tests Hub broadcasting to 100 concurrent clients.
 func TestLoad_Hub_100Clients(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
 	if testing.Short() {
 		t.Skip("Skipping load test in short mode")
 	}
@@ -270,6 +276,9 @@ func TestLoad_Hub_100Clients(t *testing.T) {
 // This test is placed in websocket package to compare performance with WebSocket Hub.
 func TestLoad_SSE_100Clients(t *testing.T) {
 	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	if testing.Short() {
 		t.Skip("Skipping load test in short mode")
 	}
 
@@ -281,6 +290,9 @@ func TestLoad_SSE_100Clients(t *testing.T) {
 
 // TestLoad_RapidMessages tests rapid message sending and receiving.
 func TestLoad_RapidMessages(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
 	if testing.Short() {
 		t.Skip("Skipping load test in short mode")
 	}
@@ -382,6 +394,9 @@ func TestLoad_RapidMessages(t *testing.T) {
 
 // TestLoad_ParallelHubs tests multiple Hubs running concurrently.
 func TestLoad_ParallelHubs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
 	if testing.Short() {
 		t.Skip("Skipping load test in short mode")
 	}
