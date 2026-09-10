@@ -3,6 +3,7 @@ package websocket
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"encoding/json/v2"
 	"net"
 	"sync"
@@ -462,8 +463,8 @@ func (c *Conn) CloseWithCode(code CloseCode, reason string) error {
 
 		// Build close frame payload: 2 bytes status code + optional reason
 		payload := make([]byte, 2+len(reason))
-		payload[0] = byte(code >> 8)
-		payload[1] = byte(code & 0xFF)
+		c16 := min(max(int(code), 0), 0xFFFF)
+		binary.BigEndian.PutUint16(payload, uint16(c16))
 		copy(payload[2:], reason)
 
 		// Validate reason is valid UTF-8

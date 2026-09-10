@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -54,12 +55,11 @@ func TestReadFrame_TextMasked(t *testing.T) {
 	applyMask(masked, mask)
 
 	// Frame: FIN=1, opcode=text(0x1), masked
-	data := []byte{
+	data := slices.Concat([]byte{
 		0x81,                               // FIN=1, RSV=0, opcode=0x1 (text)
 		0x85,                               // MASK=1, length=5
 		mask[0], mask[1], mask[2], mask[3], // Masking key
-	}
-	data = append(data, masked...)
+	}, masked)
 
 	r := bufio.NewReader(bytes.NewReader(data))
 	f, err := readFrame(r, 0)
@@ -84,11 +84,10 @@ func TestReadFrame_TextMasked(t *testing.T) {
 func TestReadFrame_Binary(t *testing.T) {
 	payload := []byte{0x00, 0xFF, 0xAA, 0x55}
 
-	data := []byte{
+	data := slices.Concat([]byte{
 		0x82, // FIN=1, RSV=0, opcode=0x2 (binary)
 		0x04, // MASK=0, length=4
-	}
-	data = append(data, payload...)
+	}, payload)
 
 	r := bufio.NewReader(bytes.NewReader(data))
 	f, err := readFrame(r, 0)
@@ -223,16 +222,13 @@ func TestReadFrame_ExtendedLength16(t *testing.T) {
 	payloadLen := 1000
 	payload := bytes.Repeat([]byte("A"), payloadLen)
 
-	data := []byte{
-		0x81, // FIN=1, opcode=0x1 (text)
-		126,  // MASK=0, length=126 (triggers 16-bit)
-	}
-
 	// Write 16-bit length.
 	lenBuf := make([]byte, 2)
 	binary.BigEndian.PutUint16(lenBuf, uint16(payloadLen))
-	data = append(data, lenBuf...)
-	data = append(data, payload...)
+	data := slices.Concat([]byte{
+		0x81, // FIN=1, opcode=0x1 (text)
+		126,  // MASK=0, length=126 (triggers 16-bit)
+	}, lenBuf, payload)
 
 	r := bufio.NewReader(bytes.NewReader(data))
 	f, err := readFrame(r, 0)
@@ -252,16 +248,13 @@ func TestReadFrame_ExtendedLength64(t *testing.T) {
 	payloadLen := 70000
 	payload := bytes.Repeat([]byte("B"), payloadLen)
 
-	data := []byte{
-		0x82, // FIN=1, opcode=0x2 (binary)
-		127,  // MASK=0, length=127 (triggers 64-bit)
-	}
-
 	// Write 64-bit length.
 	lenBuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(lenBuf, uint64(payloadLen))
-	data = append(data, lenBuf...)
-	data = append(data, payload...)
+	data := slices.Concat([]byte{
+		0x82, // FIN=1, opcode=0x2 (binary)
+		127,  // MASK=0, length=127 (triggers 64-bit)
+	}, lenBuf, payload)
 
 	r := bufio.NewReader(bytes.NewReader(data))
 	f, err := readFrame(r, 0)
@@ -344,12 +337,11 @@ func TestReadFrame_ControlFragmented(t *testing.T) {
 // RFC 6455 Section 5.5: Control frames must have payload <= 125 bytes.
 func TestReadFrame_ControlTooLarge(t *testing.T) {
 	// Control frame with 126-byte payload (invalid).
-	data := []byte{
+	data := slices.Concat([]byte{
 		0x88,       // FIN=1, opcode=0x8 (close)
 		126,        // MASK=0, length=126 (triggers 16-bit)
 		0x00, 0x7E, // 126 bytes - EXCEEDS 125 LIMIT!
-	}
-	data = append(data, make([]byte, 126)...)
+	}, make([]byte, 126))
 
 	r := bufio.NewReader(bytes.NewReader(data))
 	_, err := readFrame(r, 0)
@@ -365,11 +357,10 @@ func TestReadFrame_InvalidUTF8(t *testing.T) {
 	// Invalid UTF-8 sequence.
 	invalidUTF8 := []byte{0xFF, 0xFE, 0xFD}
 
-	data := []byte{
+	data := slices.Concat([]byte{
 		0x81, // FIN=1, opcode=0x1 (text)
 		0x03, // MASK=0, length=3
-	}
-	data = append(data, invalidUTF8...)
+	}, invalidUTF8)
 
 	r := bufio.NewReader(bytes.NewReader(data))
 	_, err := readFrame(r, 0)
@@ -427,8 +418,7 @@ func TestWriteFrame_Binary(t *testing.T) {
 	}
 
 	data := buf.Bytes()
-	expected := []byte{0x82, 0x04}
-	expected = append(expected, payload...)
+	expected := slices.Concat([]byte{0x82, 0x04}, payload)
 
 	if !bytes.Equal(data, expected) {
 		t.Errorf("expected %v, got %v", expected, data)
@@ -892,8 +882,7 @@ func TestIsValidOpcode(t *testing.T) {
 // BenchmarkReadFrame_Small benchmarks reading small frames (< 126 bytes).
 func BenchmarkReadFrame_Small(b *testing.B) {
 	payload := bytes.Repeat([]byte("A"), 100)
-	data := []byte{0x81, 0x64} // FIN=1, opcode=text, length=100
-	data = append(data, payload...)
+	data := slices.Concat([]byte{0x81, 0x64}, payload) // FIN=1, opcode=text, length=100
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -912,11 +901,9 @@ func BenchmarkReadFrame_Medium(b *testing.B) {
 	payloadLen := 1000
 	payload := bytes.Repeat([]byte("B"), payloadLen)
 
-	data := []byte{0x81, 126} // 16-bit length
 	lenBuf := make([]byte, 2)
 	binary.BigEndian.PutUint16(lenBuf, uint16(payloadLen))
-	data = append(data, lenBuf...)
-	data = append(data, payload...)
+	data := slices.Concat([]byte{0x81, 126}, lenBuf, payload) // 16-bit length
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -935,11 +922,9 @@ func BenchmarkReadFrame_Large(b *testing.B) {
 	payloadLen := 100000
 	payload := bytes.Repeat([]byte("C"), payloadLen)
 
-	data := []byte{0x82, 127} // 64-bit length, binary
 	lenBuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(lenBuf, uint64(payloadLen))
-	data = append(data, lenBuf...)
-	data = append(data, payload...)
+	data := slices.Concat([]byte{0x82, 127}, lenBuf, payload) // 64-bit length, binary
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -1109,10 +1094,9 @@ func TestUTF8Validation(t *testing.T) {
 func TestMaxPayloadLength(t *testing.T) {
 	// Test data frame at limit.
 	payloadLen := defaultMaxFramePayload
-	data := []byte{0x82, 127} // Binary, 64-bit length
 	lenBuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(lenBuf, uint64(payloadLen))
-	data = append(data, lenBuf...)
+	data := slices.Concat([]byte{0x82, 127}, lenBuf) // Binary, 64-bit length
 	// Don't actually create huge payload, just test header.
 
 	r := bufio.NewReader(bytes.NewReader(data))
