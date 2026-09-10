@@ -157,7 +157,7 @@ go get github.com/coregx/stream
 - ✅ **Text & Binary** - Both message types supported
 - ✅ **Control Frames** - Ping/Pong, Close handshake
 - ✅ **Broadcasting Hub** - Efficient multi-client messaging
-- ✅ **Connection Management** - Auto cleanup, timeouts
+- ✅ **Connection Management** - Auto cleanup
 - ✅ **Frame Masking** - Client-to-server masking (RFC requirement)
 - ✅ **84.3% Test Coverage** - 99 tests, production-ready
 

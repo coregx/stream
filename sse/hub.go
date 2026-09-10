@@ -186,16 +186,17 @@ func (h *Hub[T]) removeClient(client *Conn) {
 //	}
 //	err = hub.Register(conn)
 func (h *Hub[T]) Register(conn *Conn) error {
-	h.mu.RLock()
-	closed := h.closed
-	h.mu.RUnlock()
-
-	if closed {
+	select {
+	case <-h.done:
+		return ErrHubClosed
+	default:
+	}
+	select {
+	case h.register <- conn:
+		return nil
+	case <-h.done:
 		return ErrHubClosed
 	}
-
-	h.register <- conn
-	return nil
 }
 
 // Unregister removes a connection from the hub.
@@ -209,16 +210,17 @@ func (h *Hub[T]) Register(conn *Conn) error {
 //
 //	err := hub.Unregister(conn)
 func (h *Hub[T]) Unregister(conn *Conn) error {
-	h.mu.RLock()
-	closed := h.closed
-	h.mu.RUnlock()
-
-	if closed {
+	select {
+	case <-h.done:
+		return ErrHubClosed
+	default:
+	}
+	select {
+	case h.unregister <- conn:
+		return nil
+	case <-h.done:
 		return ErrHubClosed
 	}
-
-	h.unregister <- conn
-	return nil
 }
 
 // Broadcast sends data to all connected clients.
@@ -236,16 +238,17 @@ func (h *Hub[T]) Unregister(conn *Conn) error {
 //
 //	err := hub.Broadcast("Server restarting in 5 minutes")
 func (h *Hub[T]) Broadcast(data T) error {
-	h.mu.RLock()
-	closed := h.closed
-	h.mu.RUnlock()
-
-	if closed {
+	select {
+	case <-h.done:
+		return ErrHubClosed
+	default:
+	}
+	select {
+	case h.broadcast <- data:
+		return nil
+	case <-h.done:
 		return ErrHubClosed
 	}
-
-	h.broadcast <- data
-	return nil
 }
 
 // BroadcastJSON sends a JSON-encoded value to all connected clients.

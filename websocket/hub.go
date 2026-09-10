@@ -44,9 +44,10 @@ type Hub struct {
 	broadcast  chan []byte // Broadcast message to all
 
 	// Lifecycle management
-	done   chan struct{}  // Shutdown signal
-	closed bool           // Track if hub is closed
-	wg     sync.WaitGroup // Wait for goroutines
+	done    chan struct{}  // Shutdown signal
+	closed  bool           // Track if hub is closed
+	started bool           // Track if Run() was called
+	wg      sync.WaitGroup // Wait for goroutines
 
 	// Thread-safety for clients map and closed flag
 	mu sync.RWMutex
@@ -88,6 +89,15 @@ func NewHub() *Hub {
 // Run must be called in a goroutine: go hub.Run().
 // Call hub.AddRunning() before starting the goroutine if using wg externally.
 func (h *Hub) Run() {
+	h.mu.Lock()
+	if h.started || h.closed {
+		h.mu.Unlock()
+		h.wg.Done()
+		return
+	}
+	h.started = true
+	h.mu.Unlock()
+
 	defer h.wg.Done()
 
 	for {
@@ -253,13 +263,16 @@ func (h *Hub) Close() error {
 		return nil
 	}
 	h.closed = true
+	started := h.started
 	h.mu.Unlock()
 
 	// Signal shutdown to event loop
 	close(h.done)
 
-	// Wait for event loop to exit
-	h.wg.Wait()
+	// Wait for event loop to exit — only if Run() was called.
+	if started {
+		h.wg.Wait()
+	}
 
 	// Close all client connections
 	h.mu.Lock()
