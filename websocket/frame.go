@@ -259,7 +259,6 @@ func writeFrame(w *bufio.Writer, f *frame) error {
 	payloadLen := uint64(len(f.payload))
 
 	// Determine payload length encoding.
-	//nolint:gosec // G602: False positive - header is always length 2
 	switch {
 	case payloadLen <= payloadLen7Bit:
 		// 7-bit length (0-125).
@@ -363,7 +362,6 @@ func writeFrameNoValidation(w *bufio.Writer, f *frame) error {
 	payloadLen := uint64(len(f.payload))
 
 	// Determine payload length encoding.
-	//nolint:gosec // G602: False positive - header is always length 2
 	switch {
 	case payloadLen <= payloadLen7Bit:
 		// 7-bit length (0-125).

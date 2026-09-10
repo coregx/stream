@@ -1,4 +1,4 @@
-# 🌊 stream - Real-time Communications for Go 1.25+
+# 🌊 stream - Real-time Communications for Go 1.27+
 
 > Server-Sent Events and WebSocket implementations - Zero external dependencies, RFC-compliant, production-ready
 
@@ -135,7 +135,7 @@ Built-in Hub pattern for efficient message broadcasting to multiple clients with
 go get github.com/coregx/stream
 ```
 
-**Requirements**: Go 1.25+ (uses `encoding/json/v2` and modern generics)
+**Requirements**: Go 1.27+ (uses `encoding/json/v2` and modern generics)
 
 ---
 
@@ -164,7 +164,7 @@ go get github.com/coregx/stream
 ### Common Features
 
 - 🚀 **Zero Dependencies** - Pure stdlib implementation
-- 🎯 **Type-Safe** - Modern Go 1.25+ with generics
+- 🎯 **Type-Safe** - Modern Go 1.27+ with generics
 - ⚡ **High Performance** - <100 μs broadcasts, minimal allocations
 - 🧪 **Well-Tested** - 314 tests total, 84.3% coverage
 - 🏢 **Production Ready** - Used in coregx ecosystem

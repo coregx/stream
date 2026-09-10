@@ -130,7 +130,7 @@ func (e *Event) String() string {
 	// Retry (optional)
 	if e.Retry > 0 {
 		b.WriteString("retry: ")
-		b.WriteString(fmt.Sprintf("%d", e.Retry))
+		fmt.Fprintf(&b, "%d", e.Retry)
 		b.WriteByte('\n')
 	}
 

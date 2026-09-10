@@ -88,6 +88,8 @@ func NewHub() *Hub {
 // Run exits when Close() is called.
 // Run must be called in a goroutine: go hub.Run().
 // Call hub.AddRunning() before starting the goroutine if using wg externally.
+//
+//nolint:gocognit // Select loop with channel-close guards is inherently complex.
 func (h *Hub) Run() {
 	h.mu.Lock()
 	if h.started || h.closed {
