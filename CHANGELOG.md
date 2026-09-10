@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.2] - 2026-09-10
+
+### Security
+- **S1**: Read/Write deadlines via UpgradeOptions (ReadTimeout default 0, WriteTimeout default 10s)
+- **S2**: MaxMessageSize (default 4MB) enforced in readFrame BEFORE allocation — protects fragmented and unfragmented messages
+- **S3**: CheckOrigin defaults to same-origin (Host comparison, case-insensitive) — works behind TLS proxies
+- **S4**: Per-connection frame limit via MaxMessageSize (64MB safety net)
+
+### Changed
+- Default CheckOrigin rejects cross-origin requests (was allow-all)
+- SSE Hub.Run godoc warns about synchronous broadcast blocking
+
+### Fixed
+- TestStress_MemoryPressure uint64 overflow on GC
+- TestStress_LargeMessages uses MaxMessageSize:16MB
+- All stress/load tests guarded with testing.Short()
+
+## [0.1.1] - 2026-09-10
+
+### Fixed
+- **B2**: Hub.Close() race with Run() startup — wg.Add moved to NewHub
+- **B3**: TOCTOU in Register/Unregister/Broadcast — select with done channel (websocket + SSE)
+- Close without Run no longer deadlocks (started flag)
+- Double Run returns immediately without panic
+
+### Changed
+- Go 1.27 required (encoding/json/v2)
+- CI updated to Go 1.27
+- Channels not closed in Close() — done signal handles shutdown
+- README: removed "timeouts" claim
+
 
 ### Added
 - Integration tests for cross-feature scenarios
