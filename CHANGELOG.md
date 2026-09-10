@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-09-11
+
+### Fixed
+- Resolve all 16 golangci-lint issues (was blocking CI)
+  - staticcheck: use `fmt.Fprintf` instead of `WriteString(fmt.Sprintf)` in SSE event serialization
+  - gosec: safe `int→uint16` conversion via bounds clamp for WebSocket close code encoding
+  - nolintlint: remove 2 unused `//nolint:gosec` directives in frame writer
+  - gocognit: annotate Hub.Run() select loop (inherent complexity from channel-close guards)
+  - prealloc: use `slices.Concat` for test frame construction (11 instances)
+
+### Changed
+- Go version requirement updated from 1.25+ to 1.27+ in README (title, requirements, features)
+- WebSocket close code encoding uses `binary.BigEndian.PutUint16` (idiomatic, avoids bit-shift overflow)
+
 ## [0.1.4] - 2026-09-10
 
 ### Documentation
@@ -211,7 +225,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Dependencies:**
 - Zero external dependencies (production)
 - Pure stdlib: `net/http`, `bufio`, `encoding/json/v2`, `crypto/sha1`
-- Go 1.25+ required
+- Go 1.27+ required
 
 **Architecture:**
 - Clean separation: `sse/` and `websocket/` packages
@@ -232,6 +246,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **v0.1.5** (2026-09-11) - Go 1.27+ version bump, resolve all lint issues
+- **v0.1.4** (2026-09-10) - CHANGELOG in tagged commit
+- **v0.1.3** (2026-09-10) - CHANGELOG entries for v0.1.1-v0.1.2
+- **v0.1.2** (2026-09-10) - Security S1-S4 (deadlines, MaxMessageSize, same-origin, frame limits)
+- **v0.1.1** (2026-09-10) - Hub lifecycle fixes (race, TOCTOU, Close without Run)
 - **v0.1.0** (2025-01-18) - Initial release with SSE and WebSocket support
 - **v0.0.1** (2025-01-11) - Repository setup and project structure
 
