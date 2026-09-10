@@ -92,7 +92,6 @@ func (h *Hub) Run() {
 	h.mu.Lock()
 	if h.started || h.closed {
 		h.mu.Unlock()
-		h.wg.Done()
 		return
 	}
 	h.started = true
