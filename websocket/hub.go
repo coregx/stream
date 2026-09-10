@@ -62,13 +62,15 @@ type Hub struct {
 //
 // Returns a ready-to-use Hub with initialized channels.
 func NewHub() *Hub {
-	return &Hub{
+	h := &Hub{
 		clients:    make(map[*Conn]bool),
 		register:   make(chan *Conn),
 		unregister: make(chan *Conn),
 		broadcast:  make(chan []byte, 256), // Buffered for performance
 		done:       make(chan struct{}),
 	}
+	h.wg.Add(1) // Must be before go hub.Run() to prevent race with Close().
+	return h
 }
 
 // Run starts the Hub's event loop.
@@ -83,35 +85,40 @@ func NewHub() *Hub {
 //   - Graceful shutdown
 //
 // Run exits when Close() is called.
+// Run must be called in a goroutine: go hub.Run().
+// Call hub.AddRunning() before starting the goroutine if using wg externally.
 func (h *Hub) Run() {
-	h.wg.Add(1)
 	defer h.wg.Done()
 
 	for {
 		select {
-		case client := <-h.register:
-			// Register new client
+		case client, ok := <-h.register:
+			if !ok {
+				return
+			}
 			h.mu.Lock()
 			h.clients[client] = true
 			h.mu.Unlock()
 
-		case client := <-h.unregister:
-			// Unregister client
+		case client, ok := <-h.unregister:
+			if !ok {
+				return
+			}
 			h.mu.Lock()
-			if _, ok := h.clients[client]; ok {
+			if _, exists := h.clients[client]; exists {
 				delete(h.clients, client)
-				_ = client.Close() // Close connection
+				_ = client.Close()
 			}
 			h.mu.Unlock()
 
-		case message := <-h.broadcast:
-			// Broadcast to all clients
+		case message, ok := <-h.broadcast:
+			if !ok {
+				return
+			}
 			h.mu.RLock()
 			for client := range h.clients {
-				// Send in goroutine to avoid blocking on slow clients
 				go func(c *Conn, msg []byte) {
 					if err := c.Write(BinaryMessage, msg); err != nil {
-						// Auto-unregister on write failure
 						h.Unregister(c)
 					}
 				}(client, message)
@@ -119,7 +126,6 @@ func (h *Hub) Run() {
 			h.mu.RUnlock()
 
 		case <-h.done:
-			// Shutdown
 			return
 		}
 	}
@@ -136,14 +142,10 @@ func (h *Hub) Run() {
 //
 // Thread-safe: can be called from multiple goroutines.
 func (h *Hub) Register(client *Conn) {
-	h.mu.RLock()
-	if h.closed {
-		h.mu.RUnlock()
-		return
+	select {
+	case h.register <- client:
+	case <-h.done:
 	}
-	h.mu.RUnlock()
-
-	h.register <- client
 }
 
 // Unregister removes a client from the Hub.
@@ -157,14 +159,10 @@ func (h *Hub) Register(client *Conn) {
 // Thread-safe: can be called from multiple goroutines.
 // Safe to call multiple times for the same client (no-op after first call).
 func (h *Hub) Unregister(client *Conn) {
-	h.mu.RLock()
-	if h.closed {
-		h.mu.RUnlock()
-		return
+	select {
+	case h.unregister <- client:
+	case <-h.done:
 	}
-	h.mu.RUnlock()
-
-	h.unregister <- client
 }
 
 // Broadcast sends a message to all connected clients.
@@ -181,14 +179,10 @@ func (h *Hub) Unregister(client *Conn) {
 // Thread-safe: can be called from multiple goroutines.
 // Non-blocking: queues message and returns immediately.
 func (h *Hub) Broadcast(message []byte) {
-	h.mu.RLock()
-	if h.closed {
-		h.mu.RUnlock()
-		return
+	select {
+	case h.broadcast <- message:
+	case <-h.done:
 	}
-	h.mu.RUnlock()
-
-	h.broadcast <- message
 }
 
 // BroadcastText sends a text message to all connected clients.
@@ -275,10 +269,8 @@ func (h *Hub) Close() error {
 	h.clients = make(map[*Conn]bool) // Clear map
 	h.mu.Unlock()
 
-	// Close channels (safe now that event loop exited and no new sends)
-	close(h.register)
-	close(h.unregister)
-	close(h.broadcast)
+	// Channels are NOT closed — done signal + select handles shutdown.
+	// Closing channels would cause panic in concurrent senders.
 
 	return nil
 }
