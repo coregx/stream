@@ -17,12 +17,13 @@ import (
 // TestStress_LargeMessages tests handling of large messages (fragmented).
 func TestStress_LargeMessages(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping stress test in short mode")
+		t.Skip("skipping stress test in short mode")
 	}
 
-	// Setup echo server
+	largeOpts := &UpgradeOptions{MaxMessageSize: 16 * 1024 * 1024}
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		conn, err := Upgrade(w, r, nil)
+		conn, err := Upgrade(w, r, largeOpts)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -100,6 +101,9 @@ func TestStress_LargeMessages(t *testing.T) {
 
 // TestStress_RapidConnectDisconnect tests rapid connection cycling.
 func TestStress_RapidConnectDisconnect(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
 	if testing.Short() {
 		t.Skip("Skipping stress test in short mode")
 	}
@@ -225,6 +229,9 @@ func TestStress_RapidConnectDisconnect(t *testing.T) {
 
 // TestStress_ConcurrentBroadcast tests concurrent broadcasting from multiple goroutines.
 func TestStress_ConcurrentBroadcast(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
 	if testing.Short() {
 		t.Skip("Skipping stress test in short mode")
 	}
@@ -385,6 +392,9 @@ func TestStress_ConcurrentBroadcast(t *testing.T) {
 // TestStress_MemoryPressure tests behavior under memory pressure with many concurrent operations.
 func TestStress_MemoryPressure(t *testing.T) {
 	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	if testing.Short() {
 		t.Skip("Skipping stress test in short mode")
 	}
 
@@ -471,7 +481,10 @@ func TestStress_MemoryPressure(t *testing.T) {
 	runtime.ReadMemStats(&memStatsAfter)
 
 	// Memory metrics
-	allocIncrease := memStatsAfter.Alloc - memStatsBefore.Alloc
+	var allocIncrease uint64
+	if memStatsAfter.Alloc > memStatsBefore.Alloc {
+		allocIncrease = memStatsAfter.Alloc - memStatsBefore.Alloc
+	}
 	totalAllocIncrease := memStatsAfter.TotalAlloc - memStatsBefore.TotalAlloc
 
 	t.Logf("Memory metrics:")
@@ -491,11 +504,17 @@ func TestStress_MemoryPressure(t *testing.T) {
 // TestStress_PingPongStorm tests handling of many ping/pong control frames.
 // NOTE: Skipped - requires SetPongHandler() and WritePing() methods not yet implemented.
 func TestStress_PingPongStorm(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
 	t.Skip("Requires SetPongHandler() and WritePing() methods - TODO")
 }
 
 // TestStress_ConnectionTimeout tests handling of connection timeouts and deadlines.
 // NOTE: Skipped - requires SetReadDeadline() method not yet implemented.
 func TestStress_ConnectionTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
 	t.Skip("Requires SetReadDeadline() method - TODO")
 }

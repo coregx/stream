@@ -64,7 +64,7 @@ func TestRFC_ControlFramesDuringFragmentation(t *testing.T) {
 	r := bufio.NewReader(&buf)
 
 	// Read first fragment
-	frame1, err := readFrame(r)
+	frame1, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("Read fragment 1 failed: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestRFC_ControlFramesDuringFragmentation(t *testing.T) {
 	}
 
 	// Read PING (control frame during fragmentation)
-	pingFrame, err := readFrame(r)
+	pingFrame, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("Read PING failed: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestRFC_ControlFramesDuringFragmentation(t *testing.T) {
 	}
 
 	// Read continuation frame
-	frame2, err := readFrame(r)
+	frame2, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("Read continuation failed: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestRFC_ControlFramesDuringFragmentation(t *testing.T) {
 	}
 
 	// Read final continuation
-	frame3, err := readFrame(r)
+	frame3, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("Read final continuation failed: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestRFC_PayloadLengthBoundaries(t *testing.T) {
 
 			// Read frame back
 			r := bufio.NewReader(&buf)
-			readBack, err := readFrame(r)
+			readBack, err := readFrame(r, 0)
 			if err != nil {
 				t.Fatalf("Read failed: %v", err)
 			}
@@ -304,7 +304,7 @@ func TestRFC_UTF8Validation_Extended(t *testing.T) {
 
 			// Try to read back
 			r := bufio.NewReader(&buf)
-			_, err := readFrame(r)
+			_, err := readFrame(r, 0)
 			if tt.wantError && err == nil {
 				t.Error("Expected read to fail with invalid UTF-8, but it succeeded")
 			}
@@ -344,7 +344,7 @@ func TestRFC_FragmentationSequence(t *testing.T) {
 	r := bufio.NewReader(&buf)
 
 	// First frame: FIN=0, opcode=text
-	f1, err := readFrame(r)
+	f1, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("Read first frame failed: %v", err)
 	}
@@ -354,7 +354,7 @@ func TestRFC_FragmentationSequence(t *testing.T) {
 
 	// Continuation frames: FIN=0, opcode=continuation
 	for i := 1; i < 3; i++ {
-		f, err := readFrame(r)
+		f, err := readFrame(r, 0)
 		if err != nil {
 			t.Fatalf("Read continuation %d failed: %v", i, err)
 		}
@@ -364,7 +364,7 @@ func TestRFC_FragmentationSequence(t *testing.T) {
 	}
 
 	// Final frame: FIN=1, opcode=continuation
-	fFinal, err := readFrame(r)
+	fFinal, err := readFrame(r, 0)
 	if err != nil {
 		t.Fatalf("Read final frame failed: %v", err)
 	}
@@ -417,7 +417,7 @@ func TestRFC_CloseFramePayload(t *testing.T) {
 
 			// Read back
 			r := bufio.NewReader(&buf)
-			readBack, err := readFrame(r)
+			readBack, err := readFrame(r, 0)
 			if err != nil {
 				t.Fatalf("Read failed: %v", err)
 			}

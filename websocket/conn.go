@@ -6,6 +6,7 @@ import (
 	"encoding/json/v2"
 	"net"
 	"sync"
+	"time"
 	"unicode/utf8"
 )
 
@@ -54,18 +55,37 @@ type Conn struct {
 	fragmentBuf  bytes.Buffer // Accumulates fragmented message
 	fragmentType byte         // Opcode of first fragment (text/binary)
 	inFragment   bool         // Currently reading fragmented message
+
+	// Limits and timeouts
+	maxMessageSize int64         // 0 = no limit
+	readTimeout    time.Duration // 0 = no timeout
+	writeTimeout   time.Duration // 0 = no timeout
 }
 
 // newConn creates a new WebSocket connection (internal constructor).
 //
 // Called by Upgrade() after successful handshake.
 // Not exported - users should call Upgrade() to create connections.
-func newConn(netConn net.Conn, reader *bufio.Reader, writer *bufio.Writer, isServer bool) *Conn {
+func newConn(netConn net.Conn, reader *bufio.Reader, writer *bufio.Writer, isServer bool, opts UpgradeOptions) *Conn {
+	maxMsg := opts.MaxMessageSize
+	if maxMsg == 0 {
+		maxMsg = 4 * 1024 * 1024 // 4 MB default
+	}
+	readTO := opts.ReadTimeout
+	// No default read timeout — server has no built-in ping loop.
+	// Set ReadTimeout explicitly alongside your own PingPeriod.
+	writeTO := opts.WriteTimeout
+	if writeTO == 0 {
+		writeTO = 10 * time.Second
+	}
 	return &Conn{
-		conn:     netConn,
-		reader:   reader,
-		writer:   writer,
-		isServer: isServer,
+		conn:           netConn,
+		reader:         reader,
+		writer:         writer,
+		isServer:       isServer,
+		maxMessageSize: maxMsg,
+		readTimeout:    readTO,
+		writeTimeout:   writeTO,
 	}
 }
 
@@ -98,8 +118,14 @@ func (c *Conn) Read() (MessageType, []byte, error) {
 	c.closeMu.RUnlock()
 
 	for {
+		if c.readTimeout > 0 && c.conn != nil {
+			if err := c.conn.SetReadDeadline(time.Now().Add(c.readTimeout)); err != nil {
+				return 0, nil, err
+			}
+		}
+
 		// Read next frame
-		f, err := readFrame(c.reader)
+		f, err := readFrame(c.reader, c.maxMessageSize)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -147,17 +173,23 @@ func (c *Conn) Read() (MessageType, []byte, error) {
 			c.inFragment = true
 			c.fragmentType = f.opcode
 			c.fragmentBuf.Reset()
+
+			if c.maxMessageSize > 0 && int64(len(f.payload)) > c.maxMessageSize {
+				_ = c.CloseWithCode(CloseMessageTooBig, "message too big")
+				return 0, nil, ErrMessageTooLarge
+			}
 			c.fragmentBuf.Write(f.payload)
 
 		case opcodeContinuation:
-			// Continuation frame
 			if !c.inFragment {
-				// Unexpected continuation (no prior fragment)
 				_ = c.CloseWithCode(CloseProtocolError, "unexpected continuation")
 				return 0, nil, ErrUnexpectedContinuation
 			}
 
-			// Append to fragment buffer
+			if c.maxMessageSize > 0 && int64(c.fragmentBuf.Len())+int64(len(f.payload)) > c.maxMessageSize {
+				_ = c.CloseWithCode(CloseMessageTooBig, "message too big")
+				return 0, nil, ErrMessageTooLarge
+			}
 			c.fragmentBuf.Write(f.payload)
 
 			if f.fin {
@@ -248,6 +280,12 @@ func (c *Conn) Write(messageType MessageType, data []byte) error {
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 
+	if c.writeTimeout > 0 && c.conn != nil {
+		if err := c.conn.SetWriteDeadline(time.Now().Add(c.writeTimeout)); err != nil {
+			return err
+		}
+	}
+
 	// Build frame
 	var opcode byte
 	switch messageType {
@@ -266,10 +304,14 @@ func (c *Conn) Write(messageType MessageType, data []byte) error {
 		return ErrInvalidMessageType
 	}
 
+	if c.maxMessageSize > 0 && int64(len(data)) > c.maxMessageSize {
+		return ErrMessageTooLarge
+	}
+
 	f := &frame{
-		fin:     true, // Single frame (no fragmentation yet)
+		fin:     true,
 		opcode:  opcode,
-		masked:  !c.isServer, // Server: NO mask, Client: YES mask
+		masked:  !c.isServer,
 		payload: data,
 	}
 

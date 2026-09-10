@@ -421,7 +421,7 @@ func (c *mockHubClient) extractMessages() {
 
 			// Read frame from buffer
 			reader := bufio.NewReader(bytes.NewReader(c.writeBuf.Bytes()))
-			frame, err := readFrame(reader)
+			frame, err := readFrame(reader, 0)
 			if err != nil {
 				c.mu.Unlock()
 				continue

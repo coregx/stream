@@ -14,9 +14,8 @@ const (
 	// RFC 6455 Section 5.5: Control frames must have payload <= 125 bytes.
 	maxControlPayload = 125
 
-	// maxFramePayload is the maximum payload length for data frames.
-	// Default: 32 MB (configurable in production).
-	maxFramePayload = 32 * 1024 * 1024
+	// defaultMaxFramePayload is the default maximum payload for a single data frame.
+	defaultMaxFramePayload = 64 * 1024 * 1024
 
 	// Payload length encoding thresholds (RFC 6455 Section 5.2).
 	payloadLen7Bit  = 125 // 0-125: stored in 7 bits
@@ -89,7 +88,7 @@ type frame struct {
 // Returns:
 //   - frame: parsed frame structure
 //   - error: validation or I/O error
-func readFrame(r *bufio.Reader) (*frame, error) {
+func readFrame(r *bufio.Reader, maxMessageSize int64) (*frame, error) {
 	// Step 1: Read 2-byte header.
 	// Byte 0: FIN(1) RSV(3) Opcode(4)
 	// Byte 1: MASK(1) PayloadLen(7)
@@ -154,9 +153,13 @@ func readFrame(r *bufio.Reader) (*frame, error) {
 		return nil, ErrControlTooLarge
 	}
 
-	// Validate data frame payload length (implementation limit).
-	if payloadLen > maxFramePayload {
-		return nil, fmt.Errorf("%w: %d bytes", ErrFrameTooLarge, payloadLen)
+	// Validate data frame payload length BEFORE allocating.
+	limit := uint64(defaultMaxFramePayload)
+	if maxMessageSize > 0 && uint64(maxMessageSize) < limit {
+		limit = uint64(maxMessageSize)
+	}
+	if payloadLen > limit {
+		return nil, fmt.Errorf("%w: %d bytes (limit %d)", ErrFrameTooLarge, payloadLen, limit)
 	}
 
 	// Step 3: Read masking key if MASK=1.
@@ -226,7 +229,7 @@ func writeFrame(w *bufio.Writer, f *frame) error {
 	}
 
 	// Validate payload length (implementation limit).
-	if len(f.payload) > maxFramePayload {
+	if len(f.payload) > defaultMaxFramePayload {
 		return fmt.Errorf("%w: %d bytes", ErrFrameTooLarge, len(f.payload))
 	}
 

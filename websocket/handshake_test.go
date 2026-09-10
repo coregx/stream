@@ -206,10 +206,16 @@ func TestUpgrade_OriginCheck(t *testing.T) {
 		wantErr     error
 	}{
 		{
-			name:        "no check - allow all",
+			name:        "nil CheckOrigin defaults to same-origin - rejects cross-origin",
 			origin:      "http://evil.com",
 			checkOrigin: nil,
-			wantErr:     ErrHijackFailed, // Will fail at hijack
+			wantErr:     ErrOriginDenied,
+		},
+		{
+			name:        "explicit allow-all accepts any origin",
+			origin:      "http://evil.com",
+			checkOrigin: func(_ *http.Request) bool { return true },
+			wantErr:     ErrHijackFailed, // passes origin → fails at hijack
 		},
 		{
 			name:   "check passes",
@@ -593,7 +599,7 @@ func TestCheckSameOrigin(t *testing.T) {
 			origin: "https://example.com",
 			host:   "example.com",
 			tls:    false,
-			want:   false,
+			want:   true, // scheme ignored for TLS-terminating proxy compatibility
 		},
 	}
 

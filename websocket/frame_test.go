@@ -22,7 +22,7 @@ func TestReadFrame_TextUnmasked(t *testing.T) {
 	}
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	f, err := readFrame(r)
+	f, err := readFrame(r, 0)
 
 	if err != nil {
 		t.Fatalf("readFrame failed: %v", err)
@@ -62,7 +62,7 @@ func TestReadFrame_TextMasked(t *testing.T) {
 	data = append(data, masked...)
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	f, err := readFrame(r)
+	f, err := readFrame(r, 0)
 
 	if err != nil {
 		t.Fatalf("readFrame failed: %v", err)
@@ -91,7 +91,7 @@ func TestReadFrame_Binary(t *testing.T) {
 	data = append(data, payload...)
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	f, err := readFrame(r)
+	f, err := readFrame(r, 0)
 
 	if err != nil {
 		t.Fatalf("readFrame failed: %v", err)
@@ -149,7 +149,7 @@ func TestReadFrame_Fragmented(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := bufio.NewReader(bytes.NewReader(tt.data))
-			f, err := readFrame(r)
+			f, err := readFrame(r, 0)
 
 			if err != nil {
 				t.Fatalf("readFrame failed: %v", err)
@@ -201,7 +201,7 @@ func TestReadFrame_ControlFrames(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := bufio.NewReader(bytes.NewReader(tt.data))
-			f, err := readFrame(r)
+			f, err := readFrame(r, 0)
 
 			if err != nil {
 				t.Fatalf("readFrame failed: %v", err)
@@ -235,7 +235,7 @@ func TestReadFrame_ExtendedLength16(t *testing.T) {
 	data = append(data, payload...)
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	f, err := readFrame(r)
+	f, err := readFrame(r, 0)
 
 	if err != nil {
 		t.Fatalf("readFrame failed: %v", err)
@@ -264,7 +264,7 @@ func TestReadFrame_ExtendedLength64(t *testing.T) {
 	data = append(data, payload...)
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	f, err := readFrame(r)
+	f, err := readFrame(r, 0)
 
 	if err != nil {
 		t.Fatalf("readFrame failed: %v", err)
@@ -288,7 +288,7 @@ func TestReadFrame_InvalidOpcode(t *testing.T) {
 			}
 
 			r := bufio.NewReader(bytes.NewReader(data))
-			_, err := readFrame(r)
+			_, err := readFrame(r, 0)
 
 			if !errors.Is(err, ErrInvalidOpcode) {
 				t.Errorf("expected ErrInvalidOpcode, got %v", err)
@@ -314,7 +314,7 @@ func TestReadFrame_ReservedBits(t *testing.T) {
 			data := []byte{tt.byte0, 0x00}
 
 			r := bufio.NewReader(bytes.NewReader(data))
-			_, err := readFrame(r)
+			_, err := readFrame(r, 0)
 
 			if !errors.Is(err, ErrReservedBits) {
 				t.Errorf("expected ErrReservedBits, got %v", err)
@@ -333,7 +333,7 @@ func TestReadFrame_ControlFragmented(t *testing.T) {
 	}
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	_, err := readFrame(r)
+	_, err := readFrame(r, 0)
 
 	if !errors.Is(err, ErrControlFragmented) {
 		t.Errorf("expected ErrControlFragmented, got %v", err)
@@ -352,7 +352,7 @@ func TestReadFrame_ControlTooLarge(t *testing.T) {
 	data = append(data, make([]byte, 126)...)
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	_, err := readFrame(r)
+	_, err := readFrame(r, 0)
 
 	if !errors.Is(err, ErrControlTooLarge) {
 		t.Errorf("expected ErrControlTooLarge, got %v", err)
@@ -372,7 +372,7 @@ func TestReadFrame_InvalidUTF8(t *testing.T) {
 	data = append(data, invalidUTF8...)
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	_, err := readFrame(r)
+	_, err := readFrame(r, 0)
 
 	if !errors.Is(err, ErrInvalidUTF8) {
 		t.Errorf("expected ErrInvalidUTF8, got %v", err)
@@ -690,7 +690,7 @@ func TestRoundTrip(t *testing.T) {
 
 			// Read frame.
 			r := bufio.NewReader(&buf)
-			f, err := readFrame(r)
+			f, err := readFrame(r, 0)
 
 			if err != nil {
 				t.Fatalf("readFrame failed: %v", err)
@@ -785,7 +785,7 @@ func TestReadFrame_IncompleteHeader(t *testing.T) {
 	data := []byte{0x81}
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	_, err := readFrame(r)
+	_, err := readFrame(r, 0)
 
 	if err == nil {
 		t.Error("expected error for incomplete header")
@@ -805,7 +805,7 @@ func TestReadFrame_IncompletePayload(t *testing.T) {
 	}
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	_, err := readFrame(r)
+	_, err := readFrame(r, 0)
 
 	if err == nil {
 		t.Error("expected error for incomplete payload")
@@ -900,7 +900,7 @@ func BenchmarkReadFrame_Small(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		r := bufio.NewReader(bytes.NewReader(data))
-		_, err := readFrame(r)
+		_, err := readFrame(r, 0)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -923,7 +923,7 @@ func BenchmarkReadFrame_Medium(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		r := bufio.NewReader(bytes.NewReader(data))
-		_, err := readFrame(r)
+		_, err := readFrame(r, 0)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -946,7 +946,7 @@ func BenchmarkReadFrame_Large(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		r := bufio.NewReader(bytes.NewReader(data))
-		_, err := readFrame(r)
+		_, err := readFrame(r, 0)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -1093,7 +1093,7 @@ func TestUTF8Validation(t *testing.T) {
 			data = append(data, tt.payload...)
 
 			r := bufio.NewReader(bytes.NewReader(data))
-			_, err := readFrame(r)
+			_, err := readFrame(r, 0)
 
 			if tt.valid && err != nil {
 				t.Errorf("expected no error for valid UTF-8, got %v", err)
@@ -1108,7 +1108,7 @@ func TestUTF8Validation(t *testing.T) {
 // TestMaxPayloadLength tests maximum payload length enforcement.
 func TestMaxPayloadLength(t *testing.T) {
 	// Test data frame at limit.
-	payloadLen := maxFramePayload
+	payloadLen := defaultMaxFramePayload
 	data := []byte{0x82, 127} // Binary, 64-bit length
 	lenBuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(lenBuf, uint64(payloadLen))
@@ -1116,7 +1116,7 @@ func TestMaxPayloadLength(t *testing.T) {
 	// Don't actually create huge payload, just test header.
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	_, err := readFrame(r)
+	_, err := readFrame(r, 0)
 
 	// Should fail on reading payload (EOF), but not on size validation.
 	if err == nil {
@@ -1139,7 +1139,7 @@ func TestFragmentationSequence(t *testing.T) {
 
 	for i, frameData := range frames {
 		r := bufio.NewReader(bytes.NewReader(frameData))
-		f, err := readFrame(r)
+		f, err := readFrame(r, 0)
 
 		if err != nil {
 			t.Fatalf("frame %d: readFrame failed: %v", i, err)
@@ -1171,7 +1171,7 @@ func TestReadFrame_MSBSet(t *testing.T) {
 	}
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	_, err := readFrame(r)
+	_, err := readFrame(r, 0)
 
 	if !errors.Is(err, ErrProtocolError) {
 		t.Errorf("expected ErrProtocolError for MSB=1, got %v", err)
@@ -1213,7 +1213,7 @@ func TestReadFrame_IncompleteMask(t *testing.T) {
 	}
 
 	r := bufio.NewReader(bytes.NewReader(data))
-	_, err := readFrame(r)
+	_, err := readFrame(r, 0)
 
 	if err == nil {
 		t.Error("expected error for incomplete mask")
@@ -1250,7 +1250,7 @@ func TestReadFrame_IncompleteExtendedLength(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := bufio.NewReader(bytes.NewReader(tt.data))
-			_, err := readFrame(r)
+			_, err := readFrame(r, 0)
 
 			if err == nil {
 				t.Error("expected error for incomplete extended length")
@@ -1264,8 +1264,8 @@ func TestReadFrame_IncompleteExtendedLength(t *testing.T) {
 
 // TestWriteFrame_FrameTooLarge tests payload exceeding max size.
 func TestWriteFrame_FrameTooLarge(t *testing.T) {
-	// Create payload exceeding maxFramePayload.
-	payloadLen := maxFramePayload + 1
+	// Create payload exceeding defaultMaxFramePayload.
+	payloadLen := defaultMaxFramePayload + 1
 
 	f := &frame{
 		fin:     true,
