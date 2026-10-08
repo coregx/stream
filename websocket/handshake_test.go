@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // TestUpgrade_Success validates successful WebSocket upgrade.
@@ -659,5 +660,50 @@ func BenchmarkNegotiateSubprotocol(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_ = negotiateSubprotocol(req, serverProtos)
+	}
+}
+
+// wrappedResponseWriter simulates a middleware wrapper (like fursy's logResponseWriter)
+// that has Unwrap() but NOT Hijack(). ResponseController.Hijack() must traverse
+// the Unwrap() chain to find the underlying Hijacker.
+type wrappedResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (w *wrappedResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
+// TestUpgrade_ThroughMiddlewareWrapper verifies that WebSocket upgrade works
+// when ResponseWriter is wrapped by middleware (Logger, CircuitBreaker, etc.)
+// that implements Unwrap() but not Hijack().
+func TestUpgrade_ThroughMiddlewareWrapper(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Wrap the ResponseWriter like middleware would.
+		wrapped := &wrappedResponseWriter{ResponseWriter: w}
+		conn, err := Upgrade(wrapped, r, nil)
+		if err != nil {
+			t.Errorf("Upgrade through wrapper failed: %v", err)
+			return
+		}
+		conn.Close()
+	}))
+	defer srv.Close()
+
+	// Send a real WebSocket upgrade request.
+	client := &http.Client{Timeout: 2 * time.Second}
+	req, _ := http.NewRequest("GET", srv.URL+"/ws", http.NoBody)
+	req.Header.Set("Upgrade", "websocket")
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+	req.Header.Set("Sec-WebSocket-Version", "13")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		// Connection reset after hijack is expected.
+		return
+	}
+	if resp != nil {
+		resp.Body.Close()
 	}
 }

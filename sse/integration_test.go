@@ -653,8 +653,10 @@ func TestIntegration_HighFrequency(t *testing.T) {
 
 	t.Logf("Received %d events in %v (%.0f events/sec)", received, elapsed, rate)
 
-	if rate < 200 {
-		t.Errorf("Event rate too low: %.0f events/sec (expected >200)", rate)
+	// Threshold 100 events/sec — conservative for CI with -race on Windows
+	// (race detector adds 5-10x overhead). Local runs typically hit 1000+.
+	if rate < 100 {
+		t.Errorf("Event rate too low: %.0f events/sec (expected >100)", rate)
 	}
 }
 

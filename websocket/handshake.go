@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/sha1" // #nosec G505 - SHA-1 required by RFC 6455 Section 1.3
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -160,13 +161,13 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts *UpgradeOptions) (*Con
 	}
 	w.WriteHeader(http.StatusSwitchingProtocols)
 
-	// 10. Hijack connection (take over TCP socket)
-	hijacker, ok := w.(http.Hijacker)
-	if !ok {
+	// 10. Hijack connection (take over TCP socket).
+	// Use ResponseController to traverse Unwrap() chain — works through
+	// middleware wrappers (Logger, CircuitBreaker, OTel) that don't implement Hijacker.
+	netConn, bufrw, err := http.NewResponseController(w).Hijack()
+	if errors.Is(err, http.ErrNotSupported) {
 		return nil, ErrHijackFailed
 	}
-
-	netConn, bufrw, err := hijacker.Hijack()
 	if err != nil {
 		return nil, err
 	}
